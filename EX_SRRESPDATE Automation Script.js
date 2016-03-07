@@ -7,11 +7,9 @@ importPackage(Packages.psdi.util);
 importClass(java.util.Calendar);
 importClass(java.text.SimpleDateFormat);
 importClass(java.text.ParseException);
-//importClass(java.util.Date);
 importPackage(Packages.psdi.util.logging);
 importPackage(Packages.psdi.app);
 importPackage(Packages.psdi.app.common);
-//importPackage(Packages.psdi.util.MXFormat);
 importPackage(Packages.psdi.mbo);
 
 var myLogger = MXLoggerFactory.getLogger("maximo.script.autoscript");
@@ -53,7 +51,6 @@ if (mbo.getMboValue("EX_RESPONDED") == "N") {
 
 		//Create a instance for Calendar
 		var cal = Calendar.getInstance();
-		//Get Current date and time by using cal.getTime()
 		var currentDateTime = cal.getTime();
 		
 		//Set the actual response date
@@ -141,13 +138,7 @@ function calcBusTime(startDate, endDate) {
 
 		var slaRecordMbo = slaRecordSet.getMbo(0);
 
-		// myLogger.debug(">>>>>  EX_SRRESPDATE | calcBusTime() | slaRecordMbo.getMboValue(SLANUM): " + slaRecordMbo.getMboValue("SLANUM"));
-		// myLogger.debug(">>>>>  EX_SRRESPDATE | calcBusTime() | slaRecordMbo.getMboValue(CALCORGID): " + slaRecordMbo.getMboValue("CALCORGID"));
-		// myLogger.debug(">>>>>  EX_SRRESPDATE | calcBusTime() | slaRecordMbo.getMboValue(CALCCALENDAR): " + slaRecordMbo.getMboValue("CALCCALENDAR"));
-		// myLogger.debug(">>>>>  EX_SRRESPDATE | calcBusTime() | slaRecordMbo.getMboValue(CALCSHIFT): " + slaRecordMbo.getMboValue("CALCSHIFT"));
-
-		/* Fetch all the required variables to pass to the function to calculate the Total working hours.
-		Please change the column names as required or hard code any values */
+		/* Fetch all the required variables to pass to the function to calculate the Total working hours. */
 
 		var varorg = slaRecordMbo.getMboValue("CALCORGID"); // ENMAX
 		var varcal = slaRecordMbo.getMboValue("CALCCALENDAR"); // DAY
@@ -199,16 +190,8 @@ function calcBusTime(startDate, endDate) {
 function getHours(startDt, endDt, calName, shift, org) {
 	//myLogger.debug(">>>>>  EX_SRRESPDATE | getHours() | Begin");
 
-	//myLogger.debug(">>>>>  EX_SRRESPDATE | getHours() | startDt: " + startDt);
-	//myLogger.debug(">>>>>  EX_SRRESPDATE | getHours() | endDt: " + endDt);
-	//myLogger.debug(">>>>>  EX_SRRESPDATE | getHours() | calName: " + calName);
-	//myLogger.debug(">>>>>  EX_SRRESPDATE | getHours() | shift: " + shift);
-	//myLogger.debug(">>>>>  EX_SRRESPDATE | getHours() | org: " + org);
-
 	startDt = DateUtility.getDate(startDt);
 	endDt = DateUtility.getDate(endDt);
-
-	//  var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate between to_date(substr('" + startDt.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') and to_date(substr('"+endDt.toLocaleString() +"',0,12) ,'mm-dd-yyyy hh:mi:ss am')";
 
 	// Truncate start and end days to beginning of the days
 	var startDt2 = new Date(startDt);
@@ -236,12 +219,8 @@ function getHours(startDt, endDt, calName, shift, org) {
 function getNonWrkMins(startDt, endDt) {
 	//myLogger.debug(">>>>>  EX_SRRESPDATE | getNonWrkMins() | Begin");
 
-	//var swhereNon = "startdate between to_date(substr('" + startDt.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') and to_date(substr('"+endDt.toLocaleString() +"',0,12) ,'mm-dd-yyyy hh:mi:ss am')";
-	//var nonWrkSet = mbo.getMboSet("$nonworktime", "NONWORKTIME",swhereNon);
-
 	startDt = DateUtility.getDate(startDt);
 	endDt = DateUtility.getDate(endDt);
-	//  var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate between to_date(substr('" + startDt.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') and to_date(substr('"+endDt.toLocaleString() +"',0,12) ,'mm-dd-yyyy hh:mi:ss am')";
 
 	var startDt2 = new Date(startDt);
 	startDt2 = ISODateString(startDt2);
@@ -267,8 +246,6 @@ function getStartHours(workDate, calName, shift, org) {
 
 	//myLogger.debug(">>>>>  EX_SRRESPDATE | getStartHours() | Begin");
 
-	//var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate =  to_date(substr('" + workDate.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') ";
-	//var calSet = mbo.getMboSet("$workperiod", "WORKPERIOD",swhere);
 	workDateCopy = DateUtility.getDate(workDate);
 	var workDate2 = new Date(workDateCopy);
 	workDate2 = ISODateString(workDate2);
@@ -280,8 +257,6 @@ function getStartHours(workDate, calName, shift, org) {
 	sqf.setObject(4, "WORKPERIOD", "WORKDATE", workDate2);
 	var calSet = mbo.getMboSet("$workperiod", "WORKPERIOD", sqf.format());
 
-	//workDate = workDate;
-	//workDate = workDate.getDate();
 	var tempDate = workDate.clone();
 	tempDate.setMonth(0);
 	tempDate.setDate(1);
@@ -310,7 +285,6 @@ function getEndHours(workDate, calName, shift, org) {
 
 	//myLogger.debug(">>>>>  EX_SRRESPDATE | getEndHours() | Begin");
 
-	//var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate =  to_date(substr('" + workDate.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') ";
 	workDateCopy = DateUtility.getDate(workDate);
 	var workDate2 = new Date(workDateCopy);
 	workDate2 = ISODateString(workDate2);
@@ -322,8 +296,6 @@ function getEndHours(workDate, calName, shift, org) {
 	sqf.setObject(4, "WORKPERIOD", "WORKDATE", workDate2);
 	var calSet = mbo.getMboSet("$workperiod", "WORKPERIOD", sqf.format());
 
-	//workDate = workDate;
-	//workDate = workDate.getDate();
 	var tempDate = workDate.clone();
 	tempDate.setMonth(0);
 	tempDate.setDate(1);

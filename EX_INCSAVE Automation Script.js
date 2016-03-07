@@ -240,13 +240,7 @@ function calcBusTime(startDate, endDate) {
 
 		var slaRecordMbo = slaRecordSet.getMbo(0);
 
-		//myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | slaRecordMbo.getMboValue(SLANUM): " + slaRecordMbo.getMboValue("SLANUM"));
-		//myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | slaRecordMbo.getMboValue(CALCORGID): " + slaRecordMbo.getMboValue("CALCORGID"));
-		//myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | slaRecordMbo.getMboValue(CALCCALENDAR): " + slaRecordMbo.getMboValue("CALCCALENDAR"));
-		//myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | slaRecordMbo.getMboValue(CALCSHIFT): " + slaRecordMbo.getMboValue("CALCSHIFT"));
-
-		/* Fetch all the required variables to pass to the function to calculate the Total working hours.
-		Please change the column names as required or hard code any values */
+		/* Fetch all the required variables to pass to the function to calculate the Total working hours. */
 
 		var varorg = slaRecordMbo.getMboValue("CALCORGID"); // ENMAX
 		var varcal = slaRecordMbo.getMboValue("CALCCALENDAR"); // DAY
@@ -298,16 +292,8 @@ function calcBusTime(startDate, endDate) {
 function getHours(startDt, endDt, calName, shift, org) {
 	//myLogger.debug(">>>>>  EX_INCSAVE | getHours() | Begin");
 
-	//myLogger.debug(">>>>>  EX_INCSAVE | getHours() | startDt: " + startDt);
-	//myLogger.debug(">>>>>  EX_INCSAVE | getHours() | endDt: " + endDt);
-	//myLogger.debug(">>>>>  EX_INCSAVE | getHours() | calName: " + calName);
-	//myLogger.debug(">>>>>  EX_INCSAVE | getHours() | shift: " + shift);
-	//myLogger.debug(">>>>>  EX_INCSAVE | getHours() | org: " + org);
-
 	startDt = DateUtility.getDate(startDt);
 	endDt = DateUtility.getDate(endDt);
-
-	//  var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate between to_date(substr('" + startDt.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') and to_date(substr('"+endDt.toLocaleString() +"',0,12) ,'mm-dd-yyyy hh:mi:ss am')";
 
 	// Truncate start and end days to beginning of the days
 	var startDt2 = new Date(startDt);
@@ -335,12 +321,8 @@ function getHours(startDt, endDt, calName, shift, org) {
 function getNonWrkMins(startDt, endDt) {
 	//myLogger.debug(">>>>>  EX_INCSAVE | getNonWrkMins() | Begin");
 
-	//var swhereNon = "startdate between to_date(substr('" + startDt.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') and to_date(substr('"+endDt.toLocaleString() +"',0,12) ,'mm-dd-yyyy hh:mi:ss am')";
-	//var nonWrkSet = mbo.getMboSet("$nonworktime", "NONWORKTIME",swhereNon);
-
 	startDt = DateUtility.getDate(startDt);
 	endDt = DateUtility.getDate(endDt);
-	//  var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate between to_date(substr('" + startDt.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') and to_date(substr('"+endDt.toLocaleString() +"',0,12) ,'mm-dd-yyyy hh:mi:ss am')";
 
 	var startDt2 = new Date(startDt);
 	startDt2 = ISODateString(startDt2);
@@ -366,8 +348,6 @@ function getStartHours(workDate, calName, shift, org) {
 
 	//myLogger.debug(">>>>>  EX_INCSAVE | getStartHours() | Begin");
 
-	//var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate =  to_date(substr('" + workDate.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') ";
-	//var calSet = mbo.getMboSet("$workperiod", "WORKPERIOD",swhere);
 	workDateCopy = DateUtility.getDate(workDate);
 	var workDate2 = new Date(workDateCopy);
 	workDate2 = ISODateString(workDate2);
@@ -379,8 +359,6 @@ function getStartHours(workDate, calName, shift, org) {
 	sqf.setObject(4, "WORKPERIOD", "WORKDATE", workDate2);
 	var calSet = mbo.getMboSet("$workperiod", "WORKPERIOD", sqf.format());
 
-	//workDate = workDate;
-	//workDate = workDate.getDate();
 	var tempDate = workDate.clone();
 	tempDate.setMonth(0);
 	tempDate.setDate(1);
@@ -409,7 +387,6 @@ function getEndHours(workDate, calName, shift, org) {
 
 	//myLogger.debug(">>>>>  EX_INCSAVE | getEndHours() | Begin");
 
-	//var swhere = "calnum = '"+calName+"' and orgid = '"+org+"' and shiftnum ='"+shift+"' and workdate =  to_date(substr('" + workDate.toLocaleString() +"' ,0,12),'mm-dd-yyyy hh:mi:ss am') ";
 	workDateCopy = DateUtility.getDate(workDate);
 	var workDate2 = new Date(workDateCopy);
 	workDate2 = ISODateString(workDate2);
@@ -421,8 +398,6 @@ function getEndHours(workDate, calName, shift, org) {
 	sqf.setObject(4, "WORKPERIOD", "WORKDATE", workDate2);
 	var calSet = mbo.getMboSet("$workperiod", "WORKPERIOD", sqf.format());
 
-	//workDate = workDate;
-	//workDate = workDate.getDate();
 	var tempDate = workDate.clone();
 	tempDate.setMonth(0);
 	tempDate.setDate(1);
@@ -475,9 +450,7 @@ function calcRem(tdiff) {
 	return elapsedminutes;
 }
 
-//
-//
-//
+
 function addTicketMetricRec() {
 	myLogger.debug(">>>>>  EX_INCSAVE | addTicketMetricRec() | Begin");
 
