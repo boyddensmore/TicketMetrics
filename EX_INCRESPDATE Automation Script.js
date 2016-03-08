@@ -76,7 +76,7 @@ if (mbo.getMboValue("EX_RESPONDED") == "N") {
 		
 		mbo.setValue("EX_RESPONDED", 1);
 		
-		//Send Response Communication
+		/*//Send Response Communication
 		// Determine appropriate comm template depending on ticket's current owner group
 		switch(mbo.getString("OWNERGROUP").substring(0, 3)) {
 			case "TCS":
@@ -106,7 +106,7 @@ if (mbo.getMboValue("EX_RESPONDED") == "N") {
 			myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Sending Communication");
 			ctMbo.sendMessage(mbo,mbo);
 			myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Communication Sent");
-		}
+		}*/
 
 	}
 }
