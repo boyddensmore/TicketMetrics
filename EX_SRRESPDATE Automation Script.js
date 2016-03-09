@@ -41,6 +41,7 @@ if (mbo.getMboValue("EX_RESPONDED") == "N") {
 		newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
 		newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
 		newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+		// myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
 
 		var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
 		ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
