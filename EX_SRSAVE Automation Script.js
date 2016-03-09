@@ -129,6 +129,7 @@ function getTitle(text) {
 var oldOwnerGroup = mbo.getMboInitialValue("OWNERGROUP").asString();
 var oldOwner = mbo.getMboInitialValue("OWNER").asString();
 var newOwnerGroup = mbo.getString("OWNERGROUP");
+var newOwner = mbo.getString("OWNER");
 
 myLogger.debug(">>>>>  EX_SRSAVE | MAIN | Begin");
 
@@ -143,9 +144,10 @@ if  (appliedSlaRecordSet.isEmpty() || appliedSlaRecordSet.count() < 1)
 	slaRecordSet.applySLA();
 }
 
-if (mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwnerGroup))) {
+if ((mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwnerGroup))) ||
+	(mbo.getMboValue("OWNER").isModified() && (!newOwner.equals(oldOwner)))) {
 
-	myLogger.debug(">>>>>  EX_SRSAVE | MAIN | Ownergroup has changed");
+	myLogger.debug(">>>>>  EX_SRSAVE | MAIN | Owner or Ownergroup has changed");
 
 	//Create a instance for Calendar
 	var cal = Calendar.getInstance();
@@ -176,7 +178,7 @@ if (mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwne
 	}
 
 	// Create a new record for the new ownergroup.
-	myLogger.debug(">>>>>  EX_SRSAVE | MAIN | Creating new EX_TICKETMETRICS record for new team.");
+	myLogger.debug(">>>>>  EX_SRSAVE | MAIN | Creating new EX_TICKETMETRICS record for new team or person.");
 
 	//    add a EX_TICKETMETRICS entry to the collection
 	var ticketmetric = EX_TICKETMETRICS.add();
