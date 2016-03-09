@@ -50,6 +50,7 @@ if (!(oldStatus.isNull() || oldStatus == undefined)) {
 		newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
 		newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
 		newMetric.setValue("STATUS", oldStatus);
+		newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
 
 		var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
 		ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
@@ -103,6 +104,7 @@ if (!(oldStatus.isNull() || oldStatus == undefined)) {
 	newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
 	newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
 	newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
+	newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
 
 	newMetric.setValue("OWNDATE", currentDateTime);
 
