@@ -191,6 +191,8 @@ if ((mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwn
 	ticketmetric.setValue("OWNER", mbo.getMboValue("OWNER"));
 	ticketmetric.setValue("REPORTDATE", mbo.getMboValue("REPORTDATE"));
 	ticketmetric.setValue("STATUS", mbo.getMboValue("STATUS"));
+	ticketmetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+	// myLogger.debug(">>>>>  EX_SRSAVE | MAIN | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
 
 	//Get Current date and time by using cal.getTime()
 	var currentDateTime = cal.getTime();
@@ -471,6 +473,8 @@ function addTicketMetricRec() {
 		newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
 		newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
 		newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
+		newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+		// myLogger.debug(">>>>>  EX_SRSAVE | addTicketMetricRec | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
 
 		var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
 		ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
