@@ -22,26 +22,85 @@ var currentDateTime = cal.getTime();
 myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Old Status: " + oldStatus);
 myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | New Status: " + newStatus);
 
-if (!(oldStatus.isNull() || oldStatus == undefined)) {
-	myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Old Status is not empty/undefined, record has been saved at least once.");
-	//Check for existing metric row
-	var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
-	swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
-	EX_TICKETMETRICS.setWhere(swhere);
-	EX_TICKETMETRICS.reset();
+var slaRecordSet = mbo.getMboSet("SLARECORDS");
 
-	//If no existing row, create one for new status
-	if (EX_TICKETMETRICS.isEmpty() || EX_TICKETMETRICS.count() < 1) {
+if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
+	myLogger.warn(">>>>>  EX_INCSTATUS | MAIN | No SLA is applied, not calculating EX_TICKETMETRICS resolution details!");
+} else {
+	if (!(oldStatus.isNull() || oldStatus == undefined)) {
+		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Old Status is not empty/undefined, record has been saved at least once.");
+		//Check for existing metric row
+		var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
+		swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
+		EX_TICKETMETRICS.setWhere(swhere);
+		EX_TICKETMETRICS.reset();
 
-		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | no existing row, create one for new status.");
+		//If no existing row, create one for new status
+		if (EX_TICKETMETRICS.isEmpty() || EX_TICKETMETRICS.count() < 1) {
 
-		//    get an empty EX_TICKETMETRICS collection
-		var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
-		newMetrics.setWhere("1=0");
-		newMetrics.reset();
+			myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | no existing row, create one for new status.");
+
+			//    get an empty EX_TICKETMETRICS collection
+			var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
+			newMetrics.setWhere("1=0");
+			newMetrics.reset();
+
+			//    add a EX_TICKETMETRICS entry to the collection
+			var newMetric = newMetrics.add();
+			newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
+			newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
+			newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
+			newMetric.setValue("SITEID", mbo.getMboValue("SITEID"));
+			newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
+			newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
+			newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
+			newMetric.setValue("STATUS", oldStatus);
+			newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+
+			var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
+			ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
+			ownerHistory.reset();
+
+			var ownDate = ownerHistory.getMbo(0).getDate("OWNDATE");
+
+			newMetric.setValue("OWNDATE", ownDate);
+
+			var actualResolutionTime = calcBusTime(mbo.getDate("REPORTDATE"), currentDateTime);
+			newMetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
+
+			// Don't overwrite ACTUALRESPONSECALCMINS
+			var ACTUALRESPONSECALCMINS = newMetric.getMboValue("ACTUALRESPONSECALCMINS");
+			if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
+				newMetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+			}
+
+		//If existing row, update it with "closure" details
+		}else {
+
+			myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | existing row, update it with 'closure' details.");
+
+			var ticketmetric = EX_TICKETMETRICS.getMbo(0);
+
+			var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
+
+			ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
+
+			// Don't overwrite ACTUALRESPONSECALCMINS
+			var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
+			if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
+				ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+			}
+		}
+		
+		// In all cases, create new row for new status
+		// myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | create new row for new status.");
+		// var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
+		// newMetrics.setWhere("1=0");
+		// newMetrics.reset();
 
 		//    add a EX_TICKETMETRICS entry to the collection
-		var newMetric = newMetrics.add();
+		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Adding row for new status.");
+		var newMetric = EX_TICKETMETRICS.add();
 		newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
 		newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
 		newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
@@ -49,86 +108,33 @@ if (!(oldStatus.isNull() || oldStatus == undefined)) {
 		newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
 		newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
 		newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
-		newMetric.setValue("STATUS", oldStatus);
+		newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
 		newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
 
-		var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
-		ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
-		ownerHistory.reset();
+		newMetric.setValue("OWNDATE", currentDateTime);
 
-		var ownDate = ownerHistory.getMbo(0).getDate("OWNDATE");
-
-		newMetric.setValue("OWNDATE", ownDate);
-
-		var actualResolutionTime = calcBusTime(mbo.getDate("REPORTDATE"), currentDateTime);
-		newMetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-
-		// Don't overwrite ACTUALRESPONSECALCMINS
-		var ACTUALRESPONSECALCMINS = newMetric.getMboValue("ACTUALRESPONSECALCMINS");
-		if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
-			newMetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+		if (mbo.getMboValue("STATUS") == "RESOLVED") {
+			newMetric.setValue("ACTUALRESOLUTIONDATE", currentDateTime);
 		}
 
-	//If existing row, update it with "closure" details
-	}else {
-
-		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | existing row, update it with 'closure' details.");
-
-		var ticketmetric = EX_TICKETMETRICS.getMbo(0);
-
-		var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
-
-		ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-
-		// Don't overwrite ACTUALRESPONSECALCMINS
-		var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
-		if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
-			ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+		if (mbo.getMboValue("STATUS") == "REOPEN") {
+			
+			myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | REOPEN | Reopening ticket, clearing EX_RESPONDED flag.");
+			
+			//Clear the SR REsponded to flag so another email will be sent to customer when put back into INPROG
+			mbo.setValue("EX_RESPONDED", 0);
 		}
+
+		if ((oldStatus == "SLAHOLD") && (newStatus != "SLAHOLD")) {
+			mbo.setValue("EX_PENDINGREASON", "");
+		}
+
+		// Save ticketmetrics so that everything is committed properly.
+		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | END | Saving.");
+		EX_TICKETMETRICS.save();
+		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | END");
+
 	}
-	
-	// In all cases, create new row for new status
-	// myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | create new row for new status.");
-	// var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
-	// newMetrics.setWhere("1=0");
-	// newMetrics.reset();
-
-	//    add a EX_TICKETMETRICS entry to the collection
-	myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Adding row for new status.");
-	var newMetric = EX_TICKETMETRICS.add();
-	newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
-	newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
-	newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
-	newMetric.setValue("SITEID", mbo.getMboValue("SITEID"));
-	newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
-	newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
-	newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
-	newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
-	newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
-
-	newMetric.setValue("OWNDATE", currentDateTime);
-
-	if (mbo.getMboValue("STATUS") == "RESOLVED") {
-		newMetric.setValue("ACTUALRESOLUTIONDATE", currentDateTime);
-	}
-
-	if (mbo.getMboValue("STATUS") == "REOPEN") {
-		
-		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | REOPEN | Reopening ticket, clearing EX_RESPONDED flag.");
-		
-		//Clear the SR REsponded to flag so another email will be sent to customer when put back into INPROG
-		mbo.setValue("EX_RESPONDED", 0);
-	}
-
-	if ((oldStatus == "SLAHOLD") && (newStatus != "SLAHOLD")) {
-		mbo.setValue("EX_PENDINGREASON", "");
-	}
-
-	// Save ticketmetrics so that everything is committed properly.
-	myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | END | Saving.");
-	EX_TICKETMETRICS.save();
-	myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | END");
-
 }
 
 function calcBusTime(startDate, endDate) {

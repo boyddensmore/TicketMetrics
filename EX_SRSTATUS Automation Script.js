@@ -18,30 +18,92 @@ var newStatus = mbo.getString("STATUS");
 var cal = Calendar.getInstance();
 var currentDateTime = cal.getTime();
 
-
+myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | currentDateTime: " + currentDateTime);
 myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | Old Status: " + oldStatus);
 myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | New Status: " + newStatus);
 
-if (!(oldStatus.isNull() || oldStatus == undefined)) {
-	myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | Old Status is not empty/undefined, record has been saved at least once.");
-	//Check for existing metric row
-	var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
-	swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
-	EX_TICKETMETRICS.setWhere(swhere);
-	EX_TICKETMETRICS.reset();
+var slaRecordSet = mbo.getMboSet("SLARECORDS");
 
-	//If no existing row, create one for new status
-	if (EX_TICKETMETRICS.isEmpty() || EX_TICKETMETRICS.count() < 1) {
+if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
+	myLogger.warn(">>>>>  EX_SRSTATUS | MAIN | No SLA is applied, not calculating EX_TICKETMETRICS resolution details!");
+} else {
+	myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | SLA Set Count: " + slaRecordSet.count());
+	if (!(oldStatus.isNull() || oldStatus == undefined)) {
+		myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | Old Status is not empty/undefined, record has been saved at least once.");
+		//Check for existing metric row
+		var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
+		swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
+		EX_TICKETMETRICS.setWhere(swhere);
+		EX_TICKETMETRICS.reset();
 
-		myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | no existing row, create one for new status.");
+		//If no existing row, create one for new status
+		if (EX_TICKETMETRICS.isEmpty() || EX_TICKETMETRICS.count() < 1) {
 
-		//    get an empty EX_TICKETMETRICS collection
-		var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
-		newMetrics.setWhere("1=0");
-		newMetrics.reset();
+			myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | no existing row, create one for new status.");
+
+			//    get an empty EX_TICKETMETRICS collection
+			var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
+			newMetrics.setWhere("1=0");
+			newMetrics.reset();
+
+			//    add a EX_TICKETMETRICS entry to the collection
+			var newMetric = newMetrics.add();
+			newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
+			newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
+			newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
+			newMetric.setValue("SITEID", mbo.getMboValue("SITEID"));
+			newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
+			newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
+			newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
+			newMetric.setValue("STATUS", oldStatus);
+			newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+
+			var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
+			ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
+			ownerHistory.reset();
+
+			var ownDate = ownerHistory.getMbo(0).getDate("OWNDATE");
+
+			newMetric.setValue("OWNDATE", ownDate);
+
+			var actualResolutionTime = calcBusTime(mbo.getDate("REPORTDATE"), currentDateTime);
+			myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | New TM Rec: actualResolutionTime: " + actualResolutionTime);
+			newMetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
+
+			// Don't overwrite ACTUALRESPONSECALCMINS
+			var ACTUALRESPONSECALCMINS = newMetric.getMboValue("ACTUALRESPONSECALCMINS");
+			if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
+				newMetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+			}
+
+		//If existing row, update it with "closure" details
+		}else {
+
+			myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | existing row, update it with 'closure' details.");
+
+			var ticketmetric = EX_TICKETMETRICS.getMbo(0);
+
+			var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
+			myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | Existing TM Rec: actualResolutionTime: " + actualResolutionTime);
+
+			ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
+
+			// Don't overwrite ACTUALRESPONSECALCMINS
+			var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
+			if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
+				ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+			}
+		}
+		
+		// In all cases, create new row for new status
+		// myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | create new row for new status.");
+		// var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
+		// newMetrics.setWhere("1=0");
+		// newMetrics.reset();
 
 		//    add a EX_TICKETMETRICS entry to the collection
-		var newMetric = newMetrics.add();
+		myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | Adding row for new status.");
+		var newMetric = EX_TICKETMETRICS.add();
 		newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
 		newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
 		newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
@@ -49,90 +111,35 @@ if (!(oldStatus.isNull() || oldStatus == undefined)) {
 		newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
 		newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
 		newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
-		newMetric.setValue("STATUS", oldStatus);
+		newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
 		newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
-		// myLogger.debug(">>>>>  EX_SRSTATUS | MAIN-NoExisting | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
+		// myLogger.debug(">>>>>  EX_SRSTATUS | MAIN-CreateNew | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
 
-		var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
-		ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
-		ownerHistory.reset();
+		newMetric.setValue("OWNDATE", currentDateTime);
 
-		var ownDate = ownerHistory.getMbo(0).getDate("OWNDATE");
-
-		newMetric.setValue("OWNDATE", ownDate);
-
-		var actualResolutionTime = calcBusTime(mbo.getDate("REPORTDATE"), currentDateTime);
-		newMetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-
-		// Don't overwrite ACTUALRESPONSECALCMINS
-		var ACTUALRESPONSECALCMINS = newMetric.getMboValue("ACTUALRESPONSECALCMINS");
-		if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
-			newMetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+		if (mbo.getMboValue("STATUS") == "RESOLVED") {
+			newMetric.setValue("ACTUALRESOLUTIONDATE", currentDateTime);
 		}
 
-	//If existing row, update it with "closure" details
-	}else {
-
-		myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | existing row, update it with 'closure' details.");
-
-		var ticketmetric = EX_TICKETMETRICS.getMbo(0);
-
-		var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
-
-		ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-
-		// Don't overwrite ACTUALRESPONSECALCMINS
-		var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
-		if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
-			ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+		if (mbo.getMboValue("STATUS") == "REOPEN") {
+			
+			myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | REOPEN | Reopening ticket, clearing EX_RESPONDED flag.");
+			
+			//Clear the SR REsponded to flag so another email will be sent to customer when put back into INPROG
+			mbo.setValue("EX_RESPONDED", 0);
 		}
+
+		if ((oldStatus == "SLAHOLD") && (newStatus != "SLAHOLD")) {
+			mbo.setValue("EX_PENDINGREASON", "");
+		}
+
+		// Save ticketmetrics so that everything is committed properly.
+		myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | END | Saving.");
+		EX_TICKETMETRICS.save();
+		myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | END");
+
 	}
-	
-	// In all cases, create new row for new status
-	// myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | create new row for new status.");
-	// var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
-	// newMetrics.setWhere("1=0");
-	// newMetrics.reset();
-
-	//    add a EX_TICKETMETRICS entry to the collection
-	myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | Adding row for new status.");
-	var newMetric = EX_TICKETMETRICS.add();
-	newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
-	newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
-	newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
-	newMetric.setValue("SITEID", mbo.getMboValue("SITEID"));
-	newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
-	newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
-	newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
-	newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
-	newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
-	// myLogger.debug(">>>>>  EX_SRSTATUS | MAIN-CreateNew | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
-
-	newMetric.setValue("OWNDATE", currentDateTime);
-
-	if (mbo.getMboValue("STATUS") == "RESOLVED") {
-		newMetric.setValue("ACTUALRESOLUTIONDATE", currentDateTime);
-	}
-
-	if (mbo.getMboValue("STATUS") == "REOPEN") {
-		
-		myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | REOPEN | Reopening ticket, clearing EX_RESPONDED flag.");
-		
-		//Clear the SR REsponded to flag so another email will be sent to customer when put back into INPROG
-		mbo.setValue("EX_RESPONDED", 0);
-	}
-
-	if ((oldStatus == "SLAHOLD") && (newStatus != "SLAHOLD")) {
-		mbo.setValue("EX_PENDINGREASON", "");
-	}
-
-	// Save ticketmetrics so that everything is committed properly.
-	myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | END | Saving.");
-	EX_TICKETMETRICS.save();
-	myLogger.debug(">>>>>  EX_SRSTATUS | MAIN | END");
-
 }
-
 
 function calcBusTime(startDate, endDate) {
 	//
@@ -150,7 +157,9 @@ function calcBusTime(startDate, endDate) {
 
 	if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
 		myLogger.warn(">>>>>  EX_SRSTATUS | calcBusTime() | No SLA is applied, not calculating EX_TICKETMETRICS resolution details!");
+		myLogger.warn(">>>>>  EX_SRSTATUS | calcBusTime() | No SLA warning has been displayed.");
 	} else {
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | About to display SLA Set Count ");
 		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | SLA Set Count: " + slaRecordSet.count());
 
 		var slaRecordMbo = slaRecordSet.getMbo(0);
@@ -161,13 +170,17 @@ function calcBusTime(startDate, endDate) {
 		var varcal = slaRecordMbo.getMboValue("CALCCALENDAR"); // DAY
 		var varshift = slaRecordMbo.getMboValue("CALCSHIFT"); // DAY
 
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | varorg: " + varorg);
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | varcal: " + varcal);
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | varshift: " + varshift);
+
 		/* Get the total minutes from workperiod */
 		var totMins = getHours(startDate, endDate, varcal, varshift, varorg);
-		// myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | totMins: " + totMins);
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | totMins: " + totMins);
 
 		/* Get the remaining hours on the start date */
 		var wrkHrsStart = getStartHours(startDate, varcal, varshift, varorg);
-		// myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | wrkHrsStart: " + wrkHrsStart);
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | wrkHrsStart: " + wrkHrsStart);
 		if (wrkHrsStart > 0) {
 			var startDateMins = calcRem(wrkHrsStart);
 		} else {
@@ -176,7 +189,7 @@ function calcBusTime(startDate, endDate) {
 
 		/* Get the remaining hours on the end date */
 		var wrkHrsEnd = getEndHours(endDate, varcal, varshift, varorg);
-		// myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | wrkHrsEnd: " + wrkHrsEnd);
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | wrkHrsEnd: " + wrkHrsEnd);
 
 		if (wrkHrsEnd > 0) {
 			var endDateMins = calcRem(wrkHrsEnd);
@@ -186,7 +199,7 @@ function calcBusTime(startDate, endDate) {
 
 		/* Call The getNonWrkMins method to calculate the non-work hrs */
 		var nonWrkMins = getNonWrkMins(startDate, endDate);
-		// myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | nonWrkMins: " + nonWrkMins);
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | nonWrkMins: " + nonWrkMins);
 
 		/* Subtract the nonwrk hrs from total */
 		var finalvalue = (Math.abs(totMins - (startDateMins + endDateMins))) - (nonWrkMins);
@@ -206,7 +219,7 @@ function calcBusTime(startDate, endDate) {
 /* This function gets the total working hours from the workperiod table */
 
 function getHours(startDt, endDt, calName, shift, org) {
-	//myLogger.debug(">>>>>  EX_SRSTATUS | getHours() | Begin");
+	myLogger.debug(">>>>>  EX_SRSTATUS | getHours() | Begin");
 
 	startDt = DateUtility.getDate(startDt);
 	endDt = DateUtility.getDate(endDt);
@@ -235,7 +248,7 @@ function getHours(startDt, endDt, calName, shift, org) {
 /* Get the nonWork Hours from the NONWORKTIME table..*/
 
 function getNonWrkMins(startDt, endDt) {
-	//myLogger.debug(">>>>>  EX_SRSTATUS | getNonWrkMins() | Begin");
+	myLogger.debug(">>>>>  EX_SRSTATUS | getNonWrkMins() | Begin");
 
 	startDt = DateUtility.getDate(startDt);
 	endDt = DateUtility.getDate(endDt);
@@ -262,7 +275,7 @@ function getNonWrkMins(startDt, endDt) {
 
 function getStartHours(workDate, calName, shift, org) {
 
-	//myLogger.debug(">>>>>  EX_SRSTATUS | getStartHours() | Begin");
+	myLogger.debug(">>>>>  EX_SRSTATUS | getStartHours() | Begin");
 
 	workDateCopy = DateUtility.getDate(workDate);
 	var workDate2 = new Date(workDateCopy);
@@ -301,7 +314,7 @@ function getStartHours(workDate, calName, shift, org) {
 
 function getEndHours(workDate, calName, shift, org) {
 
-	//myLogger.debug(">>>>>  EX_SRSTATUS | getEndHours() | Begin");
+	myLogger.debug(">>>>>  EX_SRSTATUS | getEndHours() | Begin");
 
 	workDateCopy = DateUtility.getDate(workDate);
 	var workDate2 = new Date(workDateCopy);
@@ -339,7 +352,7 @@ function getEndHours(workDate, calName, shift, org) {
 /* Function to return the remaining time in Minutes */
 
 function calcMin(value, unit) {
-	//myLogger.debug(">>>>>  EX_INCRESPDATE | calcMin() | Begin");
+	myLogger.debug(">>>>>  EX_INCRESPDATE | calcMin() | Begin");
 
 	switch(unit) {
 		case "MINUTES":
@@ -359,7 +372,7 @@ function calcMin(value, unit) {
 
 /* function to calculate the remaining minutes */
 function calcRem(tdiff) {
-	//myLogger.debug(">>>>>  EX_SRSTATUS | calcRem() | Begin");
+	myLogger.debug(">>>>>  EX_SRSTATUS | calcRem() | Begin");
 	secondinmillis = 1000;
 	minuteinmillis = secondinmillis * 60;
 	elapsedminutes = tdiff / minuteinmillis;
@@ -368,7 +381,7 @@ function calcRem(tdiff) {
 
 
 function ISODateString(d) {
-	//myLogger.debug(">>>>>  EX_SRSTATUS | ISODateString() | Begin");
+	myLogger.debug(">>>>>  EX_SRSTATUS | ISODateString() | Begin");
 	function pad(n) {
 		return n < 10 ? '0' + n : n
 	}

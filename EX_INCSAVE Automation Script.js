@@ -147,62 +147,68 @@ if  (appliedSlaRecordSet.isEmpty() || appliedSlaRecordSet.count() < 1)
 	slaRecordSet.applySLA();
 }
 
-if ((mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwnerGroup))) ||
-	(mbo.getMboValue("OWNER").isModified() && (!newOwner.equals(oldOwner)))) {
+var slaRecordSet = mbo.getMboSet("SLARECORDS");
 
-	myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Owner or Ownergroup has changed");
+if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
+	myLogger.warn(">>>>>  EX_SRSAVE | MAIN | No SLA is applied, not calculating EX_TICKETMETRICS resolution details!");
+} else {
+	if ((mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwnerGroup))) ||
+		(mbo.getMboValue("OWNER").isModified() && (!newOwner.equals(oldOwner)))) {
 
-	//Create a instance for Calendar
-	var cal = Calendar.getInstance();
+		myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Owner or Ownergroup has changed");
 
-	// Get most recent EX_TICKETMETRICS row
-	var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
-	swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
-	EX_TICKETMETRICS.setWhere(swhere);
-	EX_TICKETMETRICS.reset();
+		//Create a instance for Calendar
+		var cal = Calendar.getInstance();
 
-	if (EX_TICKETMETRICS.count() > 0) {
-		//Update existing latest EX_TICKETMETRICS record
-		myLogger.debug(">>>>>  EX_INCSAVE | MAIN | EX_TICKETMETRICS record exists.  Updating it with response and resolution time.");
-		var ticketmetric = EX_TICKETMETRICS.getMbo(0);
+		// Get most recent EX_TICKETMETRICS row
+		var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
+		swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
+		EX_TICKETMETRICS.setWhere(swhere);
+		EX_TICKETMETRICS.reset();
 
-		// Calculate the business minutes current team has held the ticket
-		var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
-		myLogger.debug(">>>>>  EX_INCSAVE | MAIN | actualResolutionTime: " + actualResolutionTime);
-		myLogger.debug(">>>>>  EX_INCSAVE | MAIN | ticketmetric.getMboValue(EX_TICKETMETRICSID): " + ticketmetric.getMboValue("EX_TICKETMETRICSID"));
-		ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
+		if (EX_TICKETMETRICS.count() > 0) {
+			//Update existing latest EX_TICKETMETRICS record
+			myLogger.debug(">>>>>  EX_INCSAVE | MAIN | EX_TICKETMETRICS record exists.  Updating it with response and resolution time.");
+			var ticketmetric = EX_TICKETMETRICS.getMbo(0);
 
-		// Don't overwrite ACTUALRESPONSECALCMINS
-		var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
-		if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
-			ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+			// Calculate the business minutes current team has held the ticket
+			var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
+			myLogger.debug(">>>>>  EX_INCSAVE | MAIN | actualResolutionTime: " + actualResolutionTime);
+			myLogger.debug(">>>>>  EX_INCSAVE | MAIN | ticketmetric.getMboValue(EX_TICKETMETRICSID): " + ticketmetric.getMboValue("EX_TICKETMETRICSID"));
+			ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
+
+			// Don't overwrite ACTUALRESPONSECALCMINS
+			var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
+			if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
+				ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResolutionTime);
+			}
+
 		}
 
+		// Create a new record for the new ownergroup.
+		myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Creating new EX_TICKETMETRICS record for new team or person.");
+
+		//    add a EX_TICKETMETRICS entry to the collection
+		var ticketmetric = EX_TICKETMETRICS.add();
+
+		ticketmetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
+		ticketmetric.setValue("CLASS", mbo.getMboValue("CLASS"));
+		ticketmetric.setValue("ORGID", mbo.getMboValue("ORGID"));
+		ticketmetric.setValue("SITEID", mbo.getMboValue("SITEID"));
+		ticketmetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
+		ticketmetric.setValue("OWNER", mbo.getMboValue("OWNER"));
+		ticketmetric.setValue("REPORTDATE", mbo.getMboValue("REPORTDATE"));
+		ticketmetric.setValue("STATUS", mbo.getMboValue("STATUS"));
+		ticketmetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+
+		//Get Current date and time by using cal.getTime()
+		var currentDateTime = cal.getTime();
+		ticketmetric.setValue("OWNDATE", currentDateTime);
+
+		//Clear the SR REsponded to flag
+		mbo.setValue("EX_RESPONDED", 0);
+
 	}
-
-	// Create a new record for the new ownergroup.
-	myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Creating new EX_TICKETMETRICS record for new team or person.");
-
-	//    add a EX_TICKETMETRICS entry to the collection
-	var ticketmetric = EX_TICKETMETRICS.add();
-
-	ticketmetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
-	ticketmetric.setValue("CLASS", mbo.getMboValue("CLASS"));
-	ticketmetric.setValue("ORGID", mbo.getMboValue("ORGID"));
-	ticketmetric.setValue("SITEID", mbo.getMboValue("SITEID"));
-	ticketmetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
-	ticketmetric.setValue("OWNER", mbo.getMboValue("OWNER"));
-	ticketmetric.setValue("REPORTDATE", mbo.getMboValue("REPORTDATE"));
-	ticketmetric.setValue("STATUS", mbo.getMboValue("STATUS"));
-	ticketmetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
-
-	//Get Current date and time by using cal.getTime()
-	var currentDateTime = cal.getTime();
-	ticketmetric.setValue("OWNDATE", currentDateTime);
-
-	//Clear the SR REsponded to flag
-	mbo.setValue("EX_RESPONDED", 0);
-
 }
 
 myLogger.debug(">>>>>  EX_INCSAVE | MAIN | End");

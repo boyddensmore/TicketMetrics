@@ -17,103 +17,108 @@ var myLogger = MXLoggerFactory.getLogger("maximo.script.autoscript");
 myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | EX_SRRESPDATE running on ticket: " + mbo.getMboValue("TICKETID"));
 myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | EX_RESPONDED: " + mbo.getMboValue("EX_RESPONDED"));
 
-if (mbo.getMboValue("EX_RESPONDED") == "N") {
+var slaRecordSet = mbo.getMboSet("SLARECORDS");
 
-	var ticketmetrics = mbo.getMboSet("EX_TICKETMETRICS");
-	ticketmetrics.setWhere("ex_ticketmetricsid in (select max (ex_ticketmetricsid) from ex_ticketmetrics where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
-	ticketmetrics.reset();
+if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
+	myLogger.warn(">>>>>  EX_SRRESPDATE | MAIN | No SLA is applied, not calculating EX_TICKETMETRICS resolution details!");
+} else {
+	if (mbo.getMboValue("EX_RESPONDED") == "N") {
 
-	if (ticketmetrics.isEmpty() || ticketmetrics.count() < 1) {
-		myLogger.debug(">>>>>  EX_SRRESPDATE | Adding ticketmetrics record");
-		//    get an empty ticketmetrics collection
-		var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
-		newMetrics.setWhere("1=0");
-		newMetrics.reset();
+		var ticketmetrics = mbo.getMboSet("EX_TICKETMETRICS");
+		ticketmetrics.setWhere("ex_ticketmetricsid in (select max (ex_ticketmetricsid) from ex_ticketmetrics where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
+		ticketmetrics.reset();
 
-		//    add a ticketmetrics entry to the collection
-		var newMetric = newMetrics.add();
-		newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
-		newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
-		newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
-		newMetric.setValue("SITEID", mbo.getMboValue("SITEID"));
-		newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
-		newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
-		newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
-		newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
-		newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
-		// myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
+		if (ticketmetrics.isEmpty() || ticketmetrics.count() < 1) {
+			myLogger.debug(">>>>>  EX_SRRESPDATE | Adding ticketmetrics record");
+			//    get an empty ticketmetrics collection
+			var newMetrics = mbo.getMboSet("EX_TICKETMETRICS");
+			newMetrics.setWhere("1=0");
+			newMetrics.reset();
 
-		var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
-		ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
-		ownerHistory.reset();
+			//    add a ticketmetrics entry to the collection
+			var newMetric = newMetrics.add();
+			newMetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
+			newMetric.setValue("CLASS", mbo.getMboValue("CLASS"));
+			newMetric.setValue("ORGID", mbo.getMboValue("ORGID"));
+			newMetric.setValue("SITEID", mbo.getMboValue("SITEID"));
+			newMetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
+			newMetric.setValue("OWNER", mbo.getMboValue("OWNER"));
+			newMetric.setValue("REPORTDATE", mbo.getDate("REPORTDATE"));
+			newMetric.setValue("STATUS", mbo.getMboValue("STATUS"));
+			newMetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+			// myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Setting EX_PENDINGREASON: " + mbo.getMboValue("EX_PENDINGREASON"));
 
-		var ownDate = ownerHistory.getMbo(0).getDate("OWNDATE");
+			var ownerHistory = mbo.getMboSet("REP_OWNERHIST");
+			ownerHistory.setWhere("TKOWNERHISTORYID in (select max(TKOWNERHISTORYID) from TKOWNERHISTORY where ticketid = '" + mbo.getMboValue("TICKETID") + "')");
+			ownerHistory.reset();
 
-		newMetric.setValue("OWNDATE", ownDate);
+			var ownDate = ownerHistory.getMbo(0).getDate("OWNDATE");
 
-		//Create a instance for Calendar
-		var cal = Calendar.getInstance();
-		var currentDateTime = cal.getTime();
-		
-		//Set the actual response date
-		newMetric.setValue("ACTUALRESPONSEDATE", currentDateTime);
-		
-		// Set response business minutes
-		var actualResponseTime = calcBusTime(ownDate, currentDateTime);
-		newMetric.setValue("ACTUALRESPONSECALCMINS", actualResponseTime);
-		
-	} else {
-		myLogger.debug(">>>>>  EX_SRRESPDATE | Ticket has already been responded to?: " + mbo.getMboValue("EX_RESPONDED"));
+			newMetric.setValue("OWNDATE", ownDate);
+
+			//Create a instance for Calendar
+			var cal = Calendar.getInstance();
+			var currentDateTime = cal.getTime();
 			
-		myLogger.debug(">>>>>  EX_SRRESPDATE | Adding response details to existing ticketmetric");
-		
-		var cal = Calendar.getInstance();
-		var ticketmetric = ticketmetrics.getMbo(0);
-		var currentDateTime = cal.getTime();
-		
-		//Set the actual response date, business minutes, and Responded to flag
-		ticketmetric.setValue("ACTUALRESPONSEDATE", currentDateTime);
-		
-		var actualResponseTime = calcBusTime(ticketmetric.getDate("OWNDATE"), currentDateTime);
-		ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResponseTime);
-		
-		mbo.setValue("EX_RESPONDED", 1);
-		
-		/*//Send Response Communication
-		// Determine appropriate comm template depending on ticket's current owner group
-		switch(mbo.getString("OWNERGROUP").substring(0, 3)) {
-			case "TCS":
-				var whereclause = "TEMPLATEID ='EX_TCSSRRESPONSE'";
-				break;
-			case "HR-":
-				var whereclause = "TEMPLATEID ='EX_HRSRRESPONSE'";
-				break;
-			default:
-				var whereclause = "TEMPLATEID ='EX_ITSRRESPONSE'";
+			//Set the actual response date
+			newMetric.setValue("ACTUALRESPONSEDATE", currentDateTime);
+			
+			// Set response business minutes
+			var actualResponseTime = calcBusTime(ownDate, currentDateTime);
+			newMetric.setValue("ACTUALRESPONSECALCMINS", actualResponseTime);
+			
+		} else {
+			myLogger.debug(">>>>>  EX_SRRESPDATE | Ticket has already been responded to?: " + mbo.getMboValue("EX_RESPONDED"));
+				
+			myLogger.debug(">>>>>  EX_SRRESPDATE | Adding response details to existing ticketmetric");
+			
+			var cal = Calendar.getInstance();
+			var ticketmetric = ticketmetrics.getMbo(0);
+			var currentDateTime = cal.getTime();
+			
+			//Set the actual response date, business minutes, and Responded to flag
+			ticketmetric.setValue("ACTUALRESPONSEDATE", currentDateTime);
+			
+			var actualResponseTime = calcBusTime(ticketmetric.getDate("OWNDATE"), currentDateTime);
+			ticketmetric.setValue("ACTUALRESPONSECALCMINS", actualResponseTime);
+			
+			mbo.setValue("EX_RESPONDED", 1);
+			
+			/*//Send Response Communication
+			// Determine appropriate comm template depending on ticket's current owner group
+			switch(mbo.getString("OWNERGROUP").substring(0, 3)) {
+				case "TCS":
+					var whereclause = "TEMPLATEID ='EX_TCSSRRESPONSE'";
+					break;
+				case "HR-":
+					var whereclause = "TEMPLATEID ='EX_HRSRRESPONSE'";
+					break;
+				default:
+					var whereclause = "TEMPLATEID ='EX_ITSRRESPONSE'";
+			}
+			
+			myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Ownergroup Substr: " + mbo.getString("OWNERGROUP").substring(0, 3));
+			myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Comm Template: " + whereclause);
+			
+			myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Preparing to send Communication");
+			
+			
+			// Get appropriate comm template
+			var ctMboSet = mbo.getMboSet("$commtemp","COMMTEMPLATE",whereclause);
+			ctMboSet.setQbeExactMatch("true");
+			ctMboSet.reset();
+
+			// Send Communication
+			if(!ctMboSet.isEmpty()){
+				var ctMbo = ctMboSet.getMbo(0);
+				myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Sending Communication");
+				ctMbo.sendMessage(mbo,mbo);
+				myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Communication Sent");
+			}*/
+
 		}
-		
-		myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Ownergroup Substr: " + mbo.getString("OWNERGROUP").substring(0, 3));
-		myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Comm Template: " + whereclause);
-		
-		myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Preparing to send Communication");
-		
-		
-		// Get appropriate comm template
-		var ctMboSet = mbo.getMboSet("$commtemp","COMMTEMPLATE",whereclause);
-		ctMboSet.setQbeExactMatch("true");
-		ctMboSet.reset();
-
-		// Send Communication
-		if(!ctMboSet.isEmpty()){
-			var ctMbo = ctMboSet.getMbo(0);
-			myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Sending Communication");
-			ctMbo.sendMessage(mbo,mbo);
-			myLogger.debug(">>>>>  EX_SRRESPDATE | MAIN | Communication Sent");
-		}*/
-
 	}
 }
-
 
 //  Set Responded to flag
 mbo.setValue("EX_RESPONDED", 1);
