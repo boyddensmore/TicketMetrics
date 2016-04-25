@@ -285,7 +285,9 @@ function getStartHours(workDate, calName, shift, org) {
 		var edTime = calSet.getMbo(0).getDate("ENDTIME").getTime();
 
 		if (tempDate.getTime() < stTime) {
-			return 0;
+			// Time of action is before SLA starts.  Return number of working milliseconds for 
+			// the day to nullify the day in calculations
+			return calSet.sum("workhours") * 60 * 60 * 1000;
 		} else if (tempDate.getTime() > edTime) {
 			return edTime - stTime;
 		} else {
