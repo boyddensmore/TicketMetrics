@@ -136,7 +136,7 @@ var newOwner = mbo.getString("OWNER");
 
 myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Begin");
 
-myLogger.debug(">>>>>  EX_INCSAVE | MAIN | EX_SRSAVE running on ticket: " + mbo.getMboValue("TICKETID"));
+myLogger.debug(">>>>>  EX_INCSAVE | MAIN | EX_INCSAVE running on ticket: " + mbo.getMboValue("TICKETID"));
 
 // If no SLA is applied, try applying an SLA
 var appliedSlaRecordSet = mbo.getMboSet("SLARECORDS");
@@ -150,10 +150,10 @@ if  (appliedSlaRecordSet.isEmpty() || appliedSlaRecordSet.count() < 1)
 var slaRecordSet = mbo.getMboSet("SLARECORDS");
 
 if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
-	myLogger.warn(">>>>>  EX_SRSAVE | MAIN | No SLA is applied, not calculating EX_TICKETMETRICS resolution details!");
+	myLogger.warn(">>>>>  EX_INCSAVE | MAIN | No SLA is applied, not calculating EX_TICKETMETRICS resolution details!");
 } else {
-	myLogger.debug(">>>>>  EX_SRSAVE | MAIN | SLA Set Count: " + slaRecordSet.count());
-	
+	myLogger.debug(">>>>>  EX_INCSAVE | MAIN | SLA Set Count: " + slaRecordSet.count());
+
 	if ((mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwnerGroup))) ||
 		(mbo.getMboValue("OWNER").isModified() && (!newOwner.equals(oldOwner)))) {
 
@@ -162,15 +162,8 @@ if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
 		//Create a instance for Calendar
 		var cal = Calendar.getInstance();
 
-		// Get count of EX_TICKETMETRICS rows
-		var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
-		swhere = "EX_TICKETMETRICSid in (select EX_TICKETMETRICSid from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
-		EX_TICKETMETRICS.setWhere(swhere);
-		EX_TICKETMETRICS.reset();
-
-		var metricCount = EX_TICKETMETRICS.count();
-
 		// Get most recent EX_TICKETMETRICS row
+		var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
 		swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
 		EX_TICKETMETRICS.setWhere(swhere);
 		EX_TICKETMETRICS.reset();
@@ -181,21 +174,10 @@ if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
 			var ticketmetric = EX_TICKETMETRICS.getMbo(0);
 
 			// Calculate the business minutes current team has held the ticket
-			// If we're updating the first metrics row calculate from ReportDate, else from Owndate
-			if (metricCount == 1) {
-				var actualResolutionTime = calcBusTime(ticketmetric.getDate("REPORTDATE"), cal.getTime());
-				myLogger.debug(">>>>>  EX_INCSAVE | MAIN | metricCount: " + metricCount);
-				myLogger.debug(">>>>>  EX_INCSAVE | MAIN | actualResolutionTime: " + actualResolutionTime);
-				myLogger.debug(">>>>>  EX_INCSAVE | MAIN | ticketmetric.getMboValue(EX_TICKETMETRICSID): " + ticketmetric.getMboValue("EX_TICKETMETRICSID"));
-				ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-			}
-			else {
-				var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
-				myLogger.debug(">>>>>  EX_INCSAVE | MAIN | metricCount: " + metricCount);
-				myLogger.debug(">>>>>  EX_INCSAVE | MAIN | actualResolutionTime: " + actualResolutionTime);
-				myLogger.debug(">>>>>  EX_INCSAVE | MAIN | ticketmetric.getMboValue(EX_TICKETMETRICSID): " + ticketmetric.getMboValue("EX_TICKETMETRICSID"));
-				ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-			}
+			var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
+			myLogger.debug(">>>>>  EX_INCSAVE | MAIN | actualResolutionTime: " + actualResolutionTime);
+			myLogger.debug(">>>>>  EX_INCSAVE | MAIN | ticketmetric.getMboValue(EX_TICKETMETRICSID): " + ticketmetric.getMboValue("EX_TICKETMETRICSID"));
+			ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
 
 			// Don't overwrite ACTUALRESPONSECALCMINS
 			var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
@@ -282,22 +264,21 @@ function calcBusTime(startDate, endDate) {
 
 		/* Get the remaining hours on the start and end dates */
 		var wrkHrsStart = getStartHours(startDate, varcal, varshift, varorg);
-		myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | wrkHrsStart: " + wrkHrsStart);
 		if (wrkHrsStart > 0) {
 			var startDateMins = calcRem(wrkHrsStart);
 		} else {
 			var startDateMins = 0;
 		}
+		myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | startDateMins: " + startDateMins);
 
 		/* Get the remaining hours on the end date */
 		var wrkHrsEnd = getEndHours(endDate, varcal, varshift, varorg);
-		myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | wrkHrsEnd: " + wrkHrsEnd);
-
 		if (wrkHrsEnd > 0) {
 			var endDateMins = calcRem(wrkHrsEnd);
 		} else {
 			var endDateMins = 0;
 		}
+		myLogger.debug(">>>>>  EX_INCSAVE | calcBusTime() | endDateMins: " + endDateMins);
 
 		/* Call The getNonWrkMins method to calculate the non-work hrs */
 		var nonWrkMins = getNonWrkMins(startDate, endDate);
@@ -401,9 +382,7 @@ function getStartHours(workDate, calName, shift, org) {
 		var edTime = calSet.getMbo(0).getDate("ENDTIME").getTime();
 
 		if (tempDate.getTime() < stTime) {
-			// Time of action is before SLA starts.  Return number of working milliseconds for 
-			// the day to nullify the day in calculations
-			return calSet.sum("workhours") * 60 * 60 * 1000;
+			return 0;
 		} else if (tempDate.getTime() > edTime) {
 			return edTime - stTime;
 		} else {
@@ -442,9 +421,9 @@ function getEndHours(workDate, calName, shift, org) {
 		var edTime = calSet.getMbo(0).getDate("ENDTIME").getTime();
 
 		if (tempDate.getTime() < stTime) {
-			return 0;
-		} else if (tempDate.getTime() > edTime) {
 			return edTime - stTime;
+		} else if (tempDate.getTime() > edTime) {
+			return 0;
 		} else {
 			var timeDiff = edTime - tempDate.getTime();
 			return timeDiff;

@@ -180,22 +180,21 @@ function calcBusTime(startDate, endDate) {
 
 		/* Get the remaining hours on the start date */
 		var wrkHrsStart = getStartHours(startDate, varcal, varshift, varorg);
-		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | wrkHrsStart: " + wrkHrsStart);
 		if (wrkHrsStart > 0) {
 			var startDateMins = calcRem(wrkHrsStart);
 		} else {
 			var startDateMins = 0;
 		}
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | startDateMins: " + startDateMins);
 
 		/* Get the remaining hours on the end date */
 		var wrkHrsEnd = getEndHours(endDate, varcal, varshift, varorg);
-		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | wrkHrsEnd: " + wrkHrsEnd);
-
 		if (wrkHrsEnd > 0) {
 			var endDateMins = calcRem(wrkHrsEnd);
 		} else {
 			var endDateMins = 0;
 		}
+		myLogger.debug(">>>>>  EX_SRSTATUS | calcBusTime() | endDateMins: " + endDateMins);
 
 		/* Call The getNonWrkMins method to calculate the non-work hrs */
 		var nonWrkMins = getNonWrkMins(startDate, endDate);
@@ -298,9 +297,7 @@ function getStartHours(workDate, calName, shift, org) {
 		var edTime = calSet.getMbo(0).getDate("ENDTIME").getTime();
 
 		if (tempDate.getTime() < stTime) {
-			// Time of action is before SLA starts.  Return number of working milliseconds for 
-			// the day to nullify the day in calculations
-			return calSet.sum("workhours") * 60 * 60 * 1000;
+			return 0;
 		} else if (tempDate.getTime() > edTime) {
 			return edTime - stTime;
 		} else {
@@ -339,9 +336,9 @@ function getEndHours(workDate, calName, shift, org) {
 		var edTime = calSet.getMbo(0).getDate("ENDTIME").getTime();
 
 		if (tempDate.getTime() < stTime) {
-			return 0;
-		} else if (tempDate.getTime() > edTime) {
 			return edTime - stTime;
+		} else if (tempDate.getTime() > edTime) {
+			return 0;
 		} else {
 			var timeDiff = edTime - tempDate.getTime();
 			return timeDiff;
@@ -354,7 +351,7 @@ function getEndHours(workDate, calName, shift, org) {
 /* Function to return the remaining time in Minutes */
 
 function calcMin(value, unit) {
-	myLogger.debug(">>>>>  EX_INCRESPDATE | calcMin() | Begin");
+	myLogger.debug(">>>>>  EX_SRSTATUS | calcMin() | Begin");
 
 	switch(unit) {
 		case "MINUTES":

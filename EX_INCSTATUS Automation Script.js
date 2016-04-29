@@ -22,6 +22,15 @@ var currentDateTime = cal.getTime();
 myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | Old Status: " + oldStatus);
 myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | New Status: " + newStatus);
 
+// If no SLA is applied, try applying an SLA
+var appliedSlaRecordSet = mbo.getMboSet("SLARECORDS");
+if  (appliedSlaRecordSet.isEmpty() || appliedSlaRecordSet.count() < 1)
+{
+	println (">>>>>  EX_INCSTATUS | MAIN | No SLA on ticket.  Trying to apply SLA.");
+	var slaRecordSet = mbo.getMboSet("REP_SLA");
+	slaRecordSet.applySLA();
+}
+
 var slaRecordSet = mbo.getMboSet("SLARECORDS");
 
 if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
@@ -170,22 +179,21 @@ function calcBusTime(startDate, endDate) {
 
 		/* Get the remaining hours on the start date */
 		var wrkHrsStart = getStartHours(startDate, varcal, varshift, varorg);
-		// myLogger.debug(">>>>>  EX_INCSTATUS | calcBusTime() | wrkHrsStart: " + wrkHrsStart);
 		if (wrkHrsStart > 0) {
 			var startDateMins = calcRem(wrkHrsStart);
 		} else {
 			var startDateMins = 0;
 		}
+		// myLogger.debug(">>>>>  EX_INCSTATUS | calcBusTime() | startDateMins: " + startDateMins);
 
 		/* Get the remaining hours on the end date */
 		var wrkHrsEnd = getEndHours(endDate, varcal, varshift, varorg);
-		// myLogger.debug(">>>>>  EX_INCSTATUS | calcBusTime() | wrkHrsEnd: " + wrkHrsEnd);
-
 		if (wrkHrsEnd > 0) {
 			var endDateMins = calcRem(wrkHrsEnd);
 		} else {
 			var endDateMins = 0;
 		}
+		// myLogger.debug(">>>>>  EX_INCSTATUS | calcBusTime() | endDateMins: " + endDateMins);
 
 		/* Call The getNonWrkMins method to calculate the non-work hrs */
 		var nonWrkMins = getNonWrkMins(startDate, endDate);
@@ -288,9 +296,7 @@ function getStartHours(workDate, calName, shift, org) {
 		var edTime = calSet.getMbo(0).getDate("ENDTIME").getTime();
 
 		if (tempDate.getTime() < stTime) {
-			// Time of action is before SLA starts.  Return number of working milliseconds for 
-			// the day to nullify the day in calculations
-			return calSet.sum("workhours") * 60 * 60 * 1000;
+			return 0;
 		} else if (tempDate.getTime() > edTime) {
 			return edTime - stTime;
 		} else {
@@ -329,9 +335,9 @@ function getEndHours(workDate, calName, shift, org) {
 		var edTime = calSet.getMbo(0).getDate("ENDTIME").getTime();
 
 		if (tempDate.getTime() < stTime) {
-			return 0;
-		} else if (tempDate.getTime() > edTime) {
 			return edTime - stTime;
+		} else if (tempDate.getTime() > edTime) {
+			return 0;
 		} else {
 			var timeDiff = edTime - tempDate.getTime();
 			return timeDiff;
