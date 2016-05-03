@@ -139,8 +139,8 @@ if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
 		}
 
 		// Save ticketmetrics so that everything is committed properly.
-		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | END | Saving.");
-		EX_TICKETMETRICS.save();
+		// myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | END | Saving.");
+		// EX_TICKETMETRICS.save();
 		myLogger.debug(">>>>>  EX_INCSTATUS | MAIN | END");
 
 	}
