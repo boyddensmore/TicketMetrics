@@ -134,6 +134,9 @@ var oldOwner = mbo.getMboInitialValue("OWNER").asString();
 var newOwnerGroup = mbo.getString("OWNERGROUP");
 var newOwner = mbo.getString("OWNER");
 
+//Create a instance for Calendar
+var cal = Calendar.getInstance();
+
 myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Begin");
 
 myLogger.debug(">>>>>  EX_INCSAVE | MAIN | EX_INCSAVE running on ticket: " + mbo.getMboValue("TICKETID"));
@@ -159,9 +162,6 @@ if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
 
 		myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Owner or Ownergroup has changed");
 
-		//Create a instance for Calendar
-		var cal = Calendar.getInstance();
-
 		// Get most recent EX_TICKETMETRICS row
 		var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
 		swhere = "EX_TICKETMETRICSid in (select max (EX_TICKETMETRICSid) from EX_TICKETMETRICS where ticketid = '" + mbo.getMboValue("TICKETID") + "')";
@@ -186,31 +186,36 @@ if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
 			}
 
 		}
-
-		// Create a new record for the new ownergroup.
-		myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Creating new EX_TICKETMETRICS record for new team or person.");
-
-		//    add a EX_TICKETMETRICS entry to the collection
-		var ticketmetric = EX_TICKETMETRICS.add();
-
-		ticketmetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
-		ticketmetric.setValue("CLASS", mbo.getMboValue("CLASS"));
-		ticketmetric.setValue("ORGID", mbo.getMboValue("ORGID"));
-		ticketmetric.setValue("SITEID", mbo.getMboValue("SITEID"));
-		ticketmetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
-		ticketmetric.setValue("OWNER", mbo.getMboValue("OWNER"));
-		ticketmetric.setValue("REPORTDATE", mbo.getMboValue("REPORTDATE"));
-		ticketmetric.setValue("STATUS", mbo.getMboValue("STATUS"));
-		ticketmetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
-
-		//Get Current date and time by using cal.getTime()
-		var currentDateTime = cal.getTime();
-		ticketmetric.setValue("OWNDATE", currentDateTime);
-
-		//Clear the SR REsponded to flag
-		mbo.setValue("EX_RESPONDED", 0);
-
 	}
+}
+
+if ((mbo.getMboValue("OWNERGROUP").isModified() && (!newOwnerGroup.equals(oldOwnerGroup))) ||
+(mbo.getMboValue("OWNER").isModified() && (!newOwner.equals(oldOwner)))) {
+
+	// Create a new record for the new ownergroup.
+	myLogger.debug(">>>>>  EX_INCSAVE | MAIN | Creating new EX_TICKETMETRICS record for new team or person.");
+
+	//    add a EX_TICKETMETRICS entry to the collection
+	var EX_TICKETMETRICS = mbo.getMboSet("EX_TICKETMETRICS");
+	var ticketmetric = EX_TICKETMETRICS.add();
+
+	ticketmetric.setValue("TICKETID", mbo.getMboValue("TICKETID"));
+	ticketmetric.setValue("CLASS", mbo.getMboValue("CLASS"));
+	ticketmetric.setValue("ORGID", mbo.getMboValue("ORGID"));
+	ticketmetric.setValue("SITEID", mbo.getMboValue("SITEID"));
+	ticketmetric.setValue("OWNERGROUP", mbo.getMboValue("OWNERGROUP"));
+	ticketmetric.setValue("OWNER", mbo.getMboValue("OWNER"));
+	ticketmetric.setValue("REPORTDATE", mbo.getMboValue("REPORTDATE"));
+	ticketmetric.setValue("STATUS", mbo.getMboValue("STATUS"));
+	ticketmetric.setValue("EX_PENDINGREASON", mbo.getMboValue("EX_PENDINGREASON"));
+
+	//Get Current date and time by using cal.getTime()
+	var currentDateTime = cal.getTime();
+	ticketmetric.setValue("OWNDATE", currentDateTime);
+
+	//Clear the SR REsponded to flag
+	mbo.setValue("EX_RESPONDED", 0);
+
 }
 
 myLogger.debug(">>>>>  EX_INCSAVE | MAIN | End");
