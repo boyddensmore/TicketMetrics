@@ -5,6 +5,7 @@
 //
 
 importPackage(Packages.psdi.util);
+importPackage(Packages.psdi.mbo);
 importClass(java.util.Calendar);
 importPackage(Packages.psdi.app.common);
 importPackage(Packages.psdi.util.logging);
@@ -178,22 +179,13 @@ if (slaRecordSet.isEmpty() || slaRecordSet.count() < 1) {
 			var ticketmetric = EX_TICKETMETRICS.getMbo(0);
 
 			// Calculate the business minutes current team has held the ticket
-			// If we're updating the first metrics row calculate from ReportDate, else from Owndate
-			if (metricCount == 1) {
-				var actualResolutionTime = calcBusTime(ticketmetric.getDate("REPORTDATE"), cal.getTime());
-				myLogger.debug(">>>>>  EX_SRSAVE | MAIN | metricCount: " + metricCount);
-				myLogger.debug(">>>>>  EX_SRSAVE | MAIN | actualResolutionTime: " + actualResolutionTime);
-				myLogger.debug(">>>>>  EX_SRSAVE | MAIN | ticketmetric.getMboValue(EX_TICKETMETRICSID): " + ticketmetric.getMboValue("EX_TICKETMETRICSID"));
-				ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-			}
-			else {
+			// If we're updating the first metrics row calculate from OwnDate, else from Owndate
 				var actualResolutionTime = calcBusTime(ticketmetric.getDate("OWNDATE"), cal.getTime());
 				myLogger.debug(">>>>>  EX_SRSAVE | MAIN | metricCount: " + metricCount);
 				myLogger.debug(">>>>>  EX_SRSAVE | MAIN | actualResolutionTime: " + actualResolutionTime);
 				myLogger.debug(">>>>>  EX_SRSAVE | MAIN | ticketmetric.getMboValue(EX_TICKETMETRICSID): " + ticketmetric.getMboValue("EX_TICKETMETRICSID"));
 				ticketmetric.setValue("ACTUALRESOLUTIONCALCMINS", actualResolutionTime);
-			}
-
+			
 			// Don't overwrite ACTUALRESPONSECALCMINS
 			var ACTUALRESPONSECALCMINS = ticketmetric.getMboValue("ACTUALRESPONSECALCMINS");
 			if (ACTUALRESPONSECALCMINS.isNull() || ACTUALRESPONSECALCMINS == undefined) {
@@ -544,4 +536,67 @@ function ISODateString(d) {
 	 + pad(d.getUTCHours()) + ':'
 	 + pad(d.getUTCMinutes()) + ':'
 	 + pad(d.getUTCSeconds())
+}
+//****************************************************************************
+// When priority, reportdate, exvip are changed update activities
+//****************************************************************************
+var actMboSet = mbo.getMboSet("WOACTIVITY");
+
+var newPriority = mbo.getString("INTERNALPRIORITY");
+var oldPriority = mbo.getMboInitialValue("INTERNALPRIORITY").asString();
+
+var newAffectedperson = mbo.getString("AFFECTEDPERSON");
+var oldAffectedperson = mbo.getMboInitialValue("AFFECTEDPERSON").asString();
+
+var newReportdate = mbo.getString("REPORTDATE");
+var oldReportdate = mbo.getMboInitialValue("REPORTDATE").asString();
+
+var newExvip = mbo.getString("EXVIP");
+var oldExvip = mbo.getMboInitialValue("EXVIP").asString();
+
+var newLocation = mbo.getString("LOCATION");
+var oldLocation = mbo.getMboInitialValue("LOCATION").asString();
+
+var newAssetnum = mbo.getString("ASSETNUM");
+var oldAssetnum = mbo.getMboInitialValue("ASSETNUM").asString();
+
+
+if ((!newPriority.equals(oldPriority)) || (!newAffectedperson.equals(oldAffectedperson)) || (!newReportdate.equals(oldReportdate)) || (!newAssetnum.equals(oldAssetnum))  || (!newLocation.equals(oldLocation)) || (!newExvip.equals(oldExvip))) {
+	if (actMboSet.isEmpty() || actMboSet.count() < 1) {
+		
+	} else {
+	
+		for (x = 0; x < actMboSet.count(); x++) {
+		                       var activity = actMboSet.getMbo(x);
+                                                                        var activitystatus =  activity.getMboValue("STATUS");
+                                                                       if ((activitystatus != "CAN") & (activitystatus != "COMP") & (activitystatus != "CLOSE"))  {
+			 if (!newPriority.equals(oldPriority)) {
+				activity.setValue("WOPRIORITY", mbo.getMboValue("INTERNALPRIORITY"));
+			 }
+			 
+			 if (!newAffectedperson.equals(oldAffectedperson)) {
+				activity.setValue("ONBEHALFOF", mbo.getMboValue("AFFECTEDPERSON"));
+			 }
+
+			 if (!newReportdate.equals(oldReportdate)) {
+				activity.setValue("EX_ORIGRECORDREPORTDATE", mbo.getMboValue("REPORTDATE"));
+				activity.setValue("REPORTDATE", mbo.getMboValue("REPORTDATE"));
+			 }
+
+			 if (!newExvip.equals(oldExvip)) {
+				activity.setValue("EX_ORIGRECORDEXVIP", mbo.getMboValue("EXVIP"));
+			 }
+			 if (!newLocation.equals(oldLocation)) {
+				activity.setValue("LOCATION", mbo.getMboValue("LOCATION"), MboConstants.NOACCESSCHECK|MboConstants.NOVALIDATION_AND_NOACTION);
+			 }
+			 
+			 if (!newAssetnum.equals(oldAssetnum)) {
+				activity.setValue("ASSETNUM", mbo.getMboValue("ASSETNUM"), MboConstants.NOACCESSCHECK|MboConstants.NOVALIDATION_AND_NOACTION);
+			 }
+
+                                                                       }  
+		}
+	}
+} else {
+	
 }
